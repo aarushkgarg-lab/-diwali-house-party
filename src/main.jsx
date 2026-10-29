@@ -40,33 +40,83 @@ function App() {
     setMusicOn(false);
   }
 
-  function toggleMusic() {
-    if (musicOn) { stopMusic(); return; }
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+  ```jsx
+async function toggleMusic() {
+  if (musicOn) {
+    stopMusic();
+    return;
+  }
+
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContext) {
+    alert("Sorry! Your browser does not support audio.");
+    return;
+  }
+
+  try {
     const ctx = new AudioContext();
+    await ctx.resume();
+
     const master = ctx.createGain();
-    master.gain.value = 0.035;
+    master.gain.value = 0.12;
     master.connect(ctx.destination);
-    const notes = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 440.00, 349.23];
+
+    const notes = [
+      261.63, 329.63, 392.00, 329.63,
+      293.66, 349.23, 440.00, 349.23
+    ];
+
     let i = 0;
+    const oscillators = new Set();
+
     const play = () => {
+      if (ctx.state !== "running") return;
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
+
+      osc.type = "sine";
       osc.frequency.value = notes[i % notes.length];
+
       gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.5, ctx.currentTime + 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.65);
-      osc.connect(gain); gain.connect(master);
-      osc.start(); osc.stop(ctx.currentTime + 0.7);
+      gain.gain.exponentialRampToValueAtTime(
+        0.7,
+        ctx.currentTime + 0.08
+      );
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        ctx.currentTime + 0.65
+      );
+
+      osc.connect(gain);
+      gain.connect(master);
+
+      oscillators.add(osc);
+      osc.onended = () => oscillators.delete(osc);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 0.7);
+
       i++;
     };
+
     play();
+
     musicTimer.current = setInterval(play, 780);
-    audioRef.current = { ctx, oscillators: [] };
+
+    audioRef.current = {
+      ctx,
+      oscillators: [...oscillators]
+    };
+
     setMusicOn(true);
+  } catch (error) {
+    console.error("Music could not start:", error);
+    alert("Music start nahi hua. Please button dobara try karo.");
   }
+}
+```
 
   function moveNo() {
     const maxX = Math.max(8, Math.min(190, window.innerWidth / 2 - 95));
